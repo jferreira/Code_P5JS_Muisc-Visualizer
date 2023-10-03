@@ -29,6 +29,7 @@ function setup() {
   angleMode(DEGREES);
   // Set color mode to HSB
   colorMode(HSB);
+  
 
 // Create a button to play the previous song
 let prevButton = createButton('Previous');
