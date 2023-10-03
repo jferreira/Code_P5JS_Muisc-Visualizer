@@ -89,47 +89,103 @@ function playPreviousSong() {
   updateSongTitle();
 }
 
+
 function draw() {
   // Set the background color to black
   background(0);
 
-  // Analyze the audio spectrum using FFT
+  // Camera settings
+  orbitControl(); // Enable 3D camera control
+
+  // Perform FFT analysis on the audio
   let spectrum = fft.analyze();
-  
-  
-  // Define a variable for the gap width between bars
-let gapWidth = 4;
 
-// Define a variable for the bar width
-let barWidth = 2; // Adjust this value as needed
+  // Create an array to store audio amplitudes
+  let myAmps = new Array(specSize).fill(0);
 
-// Loop for both the left and right sides
-for (let side = -1; side <= 1; side += 2) {
-  for (let i = 0; i < spectrum.length; i++) {
-    // Set the fill color to white with varying opacity based on spectrum frequency
-    fill(255, map(i, 0, spectrum.length, 0, 255));
-    // Get the amplitude (loudness) of the current frequency band
-    let amp = spectrum[i];
-    // Map the amplitude to a vertical position on the canvas
-    let y = map(amp, 0, 256, height, 0);
+  // Loop through the audio spectrum
+  for (let i = 0; i < specSize; i += 20) {
+    myAmps[i] = fft.getFreq(i); // Get the frequency data
+  }
 
-    // Calculate the x-position for the current side (left or right)
-    let x = width / 2 + side * (i * (barWidth + gapWidth) + barWidth / 2);
-    
-    // Draw rectangles for the audio visualization on the current side
-    rect(x, y, barWidth, height - y);
+  // Store the audio amplitudes in the buffer
+  myBuffer[myPointer] = myAmps;
+  myPointer++;
+  myPointer = myPointer % myBuffer.length;
+
+  // Loop through the spectrum and draw lines based on audio amplitudes
+  for (let shiftX = 0; shiftX < specSize; shiftX += 20) {
+    for (let i = 0; i < myBuffer.length; i++) {
+      let j = (i + myPointer) % myBuffer.length;
+      let amplitude = 0;
+
+      // Check if audio data is available in the buffer
+      if (myBuffer[j]) {
+        amplitude = myBuffer[j][shiftX]; // Get the amplitude for a specific frequency band
+      }
+
+      // Normalize the amplitude and calculate line position and length
+      let amplitudeNormalized1 = 180 * amplitude / (height / 2);
+      let deGrade = (70 - abs(i - 60)) / 70;
+      let deGrade2 = deGrade * deGrade;
+      let amplitudeNormalized = amplitudeNormalized1 * deGrade;
+      let displace = 0;
+
+      // Calculate horizontal displacement for drawing lines
+      if (i < 31) {
+        displace = (31 - i) * 10;
+      } else if (i > 31) {
+        displace = (i - 31) * -10;
+      }
+
+      // Draw lines based on audio amplitudes
+      stroke(255, 255, 255, 200 * deGrade2); // Set stroke color with transparency
+      // Draw a line from one point to another
+      line(shiftX / 4, height / 3, displace, shiftX / 4, height / 3 - amplitudeNormalized, displace);
+
+      stroke(255, 255, 255, 200 * deGrade2); // Set stroke color with transparency
+      // Draw a line from one point to another
+      line(-shiftX / 4, height / 3, displace, -shiftX / 4, height / 3 - amplitudeNormalized, displace);
+
+      stroke(255, 255, 255, 50 * deGrade2); // Set stroke color with transparency
+      // Draw a line from one point to another
+      line(shiftX / 4, height / 3, displace, shiftX / 4, height / 3 + amplitudeNormalized, displace);
+
+      stroke(255, 255, 255, 50 * deGrade2); // Set stroke color with transparency
+      // Draw a line from one point to another
+      line(-shiftX / 4, height / 3, displace, -shiftX / 4, height / 3 + amplitudeNormalized, displace);
+    }
+  }
+
+  // Check if the song is not playing, and if it's not paused, rewind and play it
+  if (!song.isPlaying() && isPlaying) {
+    song.play(); // Resume playing the song
   }
 }
 
+function keyPressed() {
+  if (keyCode === RIGHT) {
+    // Right arrow: Increment the current song index
+    currentSongKey = (currentSongKey + 1) % songTitles.length;
 
-  
- // Display the current song title above the chart
- fill(255); // Set text color to white
- textSize(12); // Set text size
- textAlign(CENTER, TOP); // Center-align the text at the top
- text("Now Playing: " + songTitle, width / 2, 10); // Display the current song title above the chart
+    // Load and play the new song
+    setupSong(songTitles[currentSongKey]);
+  } else if (keyCode === LEFT) {
+    // Left arrow: Decrement the current song index
+    currentSongKey = (currentSongKey - 1 + songTitles.length) % songTitles.length;
+
+    // Load and play the new song
+    setupSong(songTitles[currentSongKey]);
+  } else if (key === ' ') {
+    // Spacebar: Toggle play/pause
+    if (isPlaying) {
+      song.pause(); // Pause the song
+    } else {
+      song.play(); // Resume playing the song
+    }
+    isPlaying = !isPlaying; // Toggle the play/pause state
+  }
 }
-
 
 
 
