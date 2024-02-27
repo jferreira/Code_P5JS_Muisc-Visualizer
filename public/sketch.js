@@ -6,6 +6,12 @@ let currentSongIndex = 0;
 let songTitle = "";
 let length = 0;
 let angle = 0;
+
+const myBufferLength = 5;
+const frequencyBand = 128;
+let myBufferPos = 0;
+let myBuffer = get_2d_array_filled(61,128,0); // fill buffer array so it has values before data from fft analysis is in
+
 function preload() {
   // List all the MP3 files in the "audio/" folder
   let songFiles = [
@@ -22,6 +28,9 @@ function preload() {
     let song = loadSound(songFiles[i]);
     songs.push(song);
   }
+   f = loadFont(
+    "https://cdnjs.cloudflare.com/ajax/libs/topcoat/0.8.0/font/SourceCodePro-Bold.otf"
+  );
 }
 
 function setup() {
@@ -30,36 +39,40 @@ function setup() {
   // Set up the canvas size and frame rate
  createCanvas(1024, 1024, WEBGL); // Canvas size is 1200x1200 pixels in 3D mode
  camera(width/2, height/2-200, (height/2.0) / tan(PI*30.0 / 180.0), width/2, height/2, 0, 0, -1, 0);
- colorMode(HSB);
-  
 
-// Create a button to play the previous song
-let prevButton = createButton('Previous');
-prevButton.mousePressed(playPreviousSong);
+ textFont(f, 50);
 
-// Create a button to toggle play/pause
-let toggleButton = createButton('Toggle Play');
-toggleButton.mousePressed(toggleSong);
+  // Create a button to play the previous song
+  let prevButton = createButton('Previous');
+  prevButton.mousePressed(playPreviousSong);
 
-// Create a button to play the next song
-let nextButton = createButton('Next');
-nextButton.mousePressed(playNextSong);
-  
-  // Start playing the first song
-  songs[currentSongIndex].play();
-  
-// Create an FFT object for audio analysis
-// Parameters: (smoothing, bands)
-// smoothing: Controls graph responsiveness (0.0 to 1.0, higher values make it smoother)
-// bands: Number of frequency bands in the audio spectrum
-fft = new p5.FFT(0.9, 128);
+  // Create a button to toggle play/pause
+  let toggleButton = createButton('Toggle Play');
+  toggleButton.mousePressed(toggleSong);
 
-// Calculate the space between lines for visualization
-// This value controls the gap between bars in the audio visualization
-space_between_lines = 6; // Adjust this value for thicker bars and larger gaps
+  // Create a button to play the next song
+  let nextButton = createButton('Next');
+  nextButton.mousePressed(playNextSong);
+    
+    // Start playing the first song
+    songs[currentSongIndex].play();
+    
+  // Create an FFT object for audio analysis
+  // Parameters: (smoothing, bands)
+  // smoothing: Controls graph responsiveness (0.0 to 1.0, higher values make it smoother)
+  // bands: Number of frequency bands in the audio spectrum
+  fft = new p5.FFT(0.9, frequencyBand);
 
-
+  // Calculate the space between lines for visualization
+  // This value controls the gap between bars in the audio visualization
+  space_between_lines = 6; // Adjust this value for thicker bars and larger gaps
 }
+
+// https://stackoverflow.com/questions/16512182/how-to-create-empty-2d-array-in-javascript
+function get_2d_array_filled(numRows, numColumnns, fillValue) {
+  return [...Array(numRows)].map(e => Array(numColumnns).fill(fillValue));
+}
+
 
 function toggleSong() {
   // If the current song is playing, pause it. Otherwise, play it.
@@ -106,55 +119,49 @@ function draw() {
   //fill('red');
   //rect(0,0,1532,24);
   //pop();
- 
   
-  
-  translate(width/2, 0, 0);
+  translate(width/2, height/2, 0);
+  rotateX(20);
   rotateY(map(remainder, 0, 20000, 0, 2*PI));
   
 
-
   // Analyze the audio spectrum using FFT
   let spectrum = fft.analyze();
+
   //strokeWeight(2);  
   
   // Define a variable for the gap width between bars
-let gapWidth = 4;
+  let gapWidth = 10;
 
-// Define a variable for the bar width
-let barWidth = 2; // Adjust this value as needed
+  // Define a variable for the bar width
+  let barWidth = 2; // Adjust this value as needed
 
-// Loop for both the left and right sides
-for (let side = -1; side <= 1; side += 2) {
-  for (let i = 0; i < spectrum.length; i++) {
-    // Set the fill color to white with varying opacity based on spectrum frequency
-    fill(255, map(i, 0, spectrum.length, 0, 255));
-    // Get the amplitude (loudness) of the current frequency band
-    let amp = spectrum[i];
-    // Map the amplitude to a vertical position on the canvas
-    let y = map(amp, 0, 256, height, 0);
+  myBuffer[myBufferPos] = spectrum;
 
-    // Calculate the x-position for the current side (left or right); 511 is a hardcoded value at this point
-    // remember to change 25.10.2023 - Christian
-    let x = (width / 2 + side * (i * (barWidth + gapWidth) + barWidth / 2)) - 511;
-    
-    
-    // Draw rectangles for the audio visualization on the current side
-    rect(x, y, barWidth, height - y);
+  strokeWeight(barWidth);
+  stroke(255,255,255, 50);
+
+  for(let z = 0; z < myBufferLength; z++) { 
+    translate (0, 0, z * gapWidth);
+
+    for (let i = 0; i < frequencyBand; i++) {
+      let x = i * gapWidth - width/2;
+      let amp = myBuffer[z][i];
+
+      line(x, 0, x, amp);
+    }
   }
 
-}
+  myBufferPos++;
+  myBufferPos = myBufferPos % myBufferLength;
 
-  
+
  // Display the current song title above the chart
  fill(255); // Set text color to white
  textSize(12); // Set text size
  textAlign(CENTER, TOP); // Center-align the text at the top
  text("Now Playing: " + songTitle, width / 2, 10); // Display the current song title above the chart
 }
-
-
-
 
 
 function touchStarted() {
